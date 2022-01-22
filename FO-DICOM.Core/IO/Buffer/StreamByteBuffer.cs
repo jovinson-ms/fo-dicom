@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace FellowOakDicom.IO.Buffer
 {
-    public sealed class StreamByteBuffer : IByteBuffer
+    public class StreamByteBuffer : IByteBuffer
     {
         public StreamByteBuffer(Stream stream, long position, long length)
         {
@@ -26,7 +26,7 @@ namespace FellowOakDicom.IO.Buffer
 
         public long Size { get; }
 
-        public byte[] Data
+        public virtual byte[] Data
         {
             get
             {
