@@ -5,6 +5,7 @@ using FellowOakDicom.IO;
 using FellowOakDicom.IO.Buffer;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -18,28 +19,18 @@ namespace FellowOakDicom.Tests
         /// </summary>
         private class ToyBufferedStream : MemoryStream
         {
-            private byte[] _buffer;
-
             private int _bufferPosition;
 
             private int _bufferLength;
 
-            public ToyBufferedStream(int bufferLength) : base(bufferLength * 10)
+            public ToyBufferedStream(byte[] bytes) : base(bytes, 0, bytes.Length, false, true)
             {
-                _bufferLength = bufferLength;
+                _bufferLength = bytes.Length / 2;
                 _bufferPosition = 0;
-
-                _buffer = new byte[_bufferLength];
-                for (var i = 0; i < _bufferLength; i++)
-                {
-                    _buffer[i] = (byte)1;
-                }
-
-                SetLength(100);
             }
 
             /// <summary>
-            /// Returns the lesser of unread bytes in buffer or requested bytes. A simplified version of the corresponding
+            /// Returns the lesser of buffer length or requested bytes. A simplified version of the corresponding
             /// method in Azure.Storage.LazyLoadingReadOnlyStream:
             /// https://github.com/Azure/azure-sdk-for-net/blob/59dbd87c84d9ebf09f9075ad30ee440a0c0a5917/sdk/storage/Azure.Storage.Common/src/Shared/LazyLoadingReadOnlyStream.cs#L167
             /// </summary>
@@ -55,8 +46,8 @@ namespace FellowOakDicom.Tests
                 int remainingBytesInBuffer = _bufferLength - _bufferPosition;
                 int bytesToWrite = Math.Min(remainingBytesInBuffer, count);
 
-                Array.Copy(_buffer, _bufferPosition, buffer, offset, bytesToWrite);
-
+                Array.Copy(GetBuffer(), Position + _bufferPosition, buffer, offset, bytesToWrite);
+                
                 Position += bytesToWrite;
                 _bufferPosition += bytesToWrite;
 
@@ -105,9 +96,10 @@ namespace FellowOakDicom.Tests
         public async Task Open_PixelDataLargerThanStreamBuffer_ReturnsIncompleteData()
         {
             var size = 100;
-            var bufferSize = 10;
+            var bufferSize = 50;
+            var bytes = Enumerable.Repeat(1, size).Select(i => (byte)i).ToArray();
 
-            using (var bufferedStream = new ToyBufferedStream(bufferSize))
+            using (var bufferedStream = new ToyBufferedStream(bytes))
             {
                 var streamByteBuffer = new StreamByteBuffer(bufferedStream, 0, size);
                 var data = streamByteBuffer.Data; // on-demand access
@@ -122,9 +114,10 @@ namespace FellowOakDicom.Tests
         public async Task Open_PixelDataLargerThanStreamBufferWithImprovements_ReturnsCompleteData()
         {
             var size = 100;
-            var bufferSize = 10;
+            var bufferSize = 50;
+            var bytes = Enumerable.Repeat(1, size).Select(i => (byte)i).ToArray();
 
-            using (var bufferedStream = new ToyBufferedStream(bufferSize))
+            using (var bufferedStream = new ToyBufferedStream(bytes))
             {
                 var bufferingStreamByteBuffer = new BufferingStreamByteBuffer(bufferedStream, 0, size);
                 var data = bufferingStreamByteBuffer.Data; // on-demand access
